@@ -1,14 +1,18 @@
-import Link from "next/link";
+'use client';
 
+import Link from "next/link";
 import { useState } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import { generatePDFFromCelebrities } from '../lib/pdf-utils';
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCelebrities, setSelectedCelebrities] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<'All' | 'Music' | 'Entertainment' | 'Sports'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [pdfError, setPdfError] = useState('');
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -16,6 +20,42 @@ export default function Home() {
       element.scrollIntoView({ behavior: 'smooth' });
       setSidebarOpen(false); // Close sidebar after navigation
     }
+  };
+
+  // PDF Generation Handler
+  const handleGenerateReport = async () => {
+    if (selectedCelebrities.length === 0) return;
+    
+    setIsGeneratingPDF(true);
+    setPdfError('');
+    
+    try {
+      await generatePDFFromCelebrities(selectedCelebrities);
+      // PDF download will happen automatically via the utility function
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      setPdfError(error instanceof Error ? error.message : 'Failed to generate PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  // Selection handlers
+  const selectAll = () => {
+    const filteredCelebrities = getFilteredCelebrities();
+    setSelectedCelebrities(filteredCelebrities.map(c => c.name));
+  };
+
+  const clearAll = () => {
+    setSelectedCelebrities([]);
+  };
+
+  const toggleCelebritySelection = (name: string) => {
+    setSelectedCelebrities(prev => 
+      prev.includes(name) 
+        ? prev.filter(n => n !== name)
+        : [...prev, name]
+    );
   };
 
   const celebrityData = [
@@ -99,63 +139,7 @@ export default function Home() {
     return filtered;
   };
 
-  const toggleCelebrity = (name: string) => {
-    setSelectedCelebrities(prev => 
-      prev.includes(name) 
-        ? prev.filter(c => c !== name)
-        : [...prev, name]
-    );
-  };
-
-  const selectAll = () => {
-    // Only select currently visible celebrities, but preserve existing selections from other filters
-    const currentlyVisible = getFilteredCelebrities().map(c => c.name);
-    setSelectedCelebrities(prev => {
-      const newSelections = currentlyVisible.filter(name => !prev.includes(name));
-      return [...prev, ...newSelections];
-    });
-  };
-
-  const clearAll = () => {
-    setSelectedCelebrities([]);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            AutoPR
-          </h1>
-          <p className="text-gray-600">
-            Media Coverage Report Generator
-          </p>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <h2 className="font-semibold text-blue-900 mb-2">
-              📄 PDF Generator Ready
-            </h2>
-            <p className="text-sm text-blue-700 mb-4">
-              Transform JSON media data into professional client reports
-            </p>
-            <Link 
-              href="/test-pdf"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
-            >
-              Test PDF Generation
-            </Link>
-          </div>
-          
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-800 mb-2">API Endpoints</h3>
-            <div className="text-sm text-gray-600 space-y-1">
-              <div><code className="bg-gray-200 px-2 py-1 rounded text-xs">POST /api/generate-pdf</code></div>
-              <div><code className="bg-gray-200 px-2 py-1 rounded text-xs">GET /api/test-pdf</code></div>
-            </div>
-          </div>
-        </div>
     <div className="min-h-screen bg-white">
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex">
@@ -251,19 +235,19 @@ export default function Home() {
                         </thead>
                       </table>
                     </div>
-                    
+
                     {/* Scrollable body */}
-                    <div className="max-h-100 overflow-y-auto">
+                    <div className="max-h-96 overflow-y-auto">
                       <table className="w-full">
-                        <tbody className="divide-y divide-gray-200">
-                          {getFilteredCelebrities().map((celebrity) => (
+                        <tbody>
+                          {getFilteredCelebrities().map((celebrity, index) => (
                             <tr 
                               key={celebrity.name} 
-                              onClick={() => toggleCelebrity(celebrity.name)}
+                              onClick={() => toggleCelebritySelection(celebrity.name)}
                               className={`cursor-pointer transition-all group ${
                                 selectedCelebrities.includes(celebrity.name) 
                                   ? 'bg-gray-800 text-white' 
-                                  : 'hover:bg-gray-50'
+                                  : 'bg-white hover:bg-gray-50'
                               }`}
                             >
                               <td className={`py-3 px-4 text-sm font-medium w-1/4 ${
@@ -271,7 +255,14 @@ export default function Home() {
                                   ? 'text-white' 
                                   : 'text-gray-900 group-hover:text-gray-700'
                               }`}>
-                                {celebrity.name}
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    selectedCelebrities.includes(celebrity.name) 
+                                      ? 'bg-green-400' 
+                                      : 'bg-gray-400 group-hover:bg-gray-500'
+                                  }`}></div>
+                                  {celebrity.name}
+                                </div>
                               </td>
                               <td className={`py-3 px-4 text-sm w-1/4 ${
                                 selectedCelebrities.includes(celebrity.name) 
@@ -285,9 +276,9 @@ export default function Home() {
                                   ? 'text-gray-200' 
                                   : 'text-gray-600'
                               }`}>
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                   celebrity.category === 'Music' 
-                                    ? 'bg-pink-100 text-pink-800'
+                                    ? 'bg-purple-100 text-purple-800'
                                     : celebrity.category === 'Entertainment'
                                     ? 'bg-blue-100 text-blue-800' 
                                     : 'bg-green-100 text-green-800'
@@ -318,29 +309,49 @@ export default function Home() {
                 {/* Generate Report Button - always present, seamless transition */}
                 <div className="flex flex-col justify-center min-w-[140px]">
                   <button 
+                    onClick={handleGenerateReport}
                     className={`px-6 py-4 text-sm font-medium rounded-2xl transition-all shadow-md flex flex-col items-center gap-2 group min-w-[140px] ${
-                      selectedCelebrities.length > 0 
+                      selectedCelebrities.length > 0 && !isGeneratingPDF
                         ? 'bg-green-600 text-white hover:bg-green-700 opacity-100 cursor-pointer' 
                         : 'bg-gray-200 text-gray-400 opacity-50 cursor-not-allowed'
                     }`}
-                    disabled={selectedCelebrities.length === 0}
+                    disabled={selectedCelebrities.length === 0 || isGeneratingPDF}
                   >
-                    <svg className={`w-6 h-6 transition-transform ${selectedCelebrities.length > 0 ? 'group-hover:scale-110' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    {isGeneratingPDF ? (
+                      <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className={`w-6 h-6 transition-transform ${selectedCelebrities.length > 0 ? 'group-hover:scale-110' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    )}
                     <div className="text-center">
-                      <div className="font-semibold">Generate Report</div>
+                      <div className="font-semibold">
+                        {isGeneratingPDF ? 'Generating...' : 'Generate Report'}
+                      </div>
                       <div className="text-xs opacity-90">
-                        {selectedCelebrities.length > 0 ? `${selectedCelebrities.length} selected` : 'Select celebrities'}
+                        {isGeneratingPDF 
+                          ? 'Creating PDF...' 
+                          : selectedCelebrities.length > 0 
+                            ? `${selectedCelebrities.length} selected` 
+                            : 'Select celebrities'
+                        }
                       </div>
                     </div>
                   </button>
+                  
+                  {/* Error message */}
+                  {pdfError && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-xs text-red-600">{pdfError}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-
-
         </main>
       </div>
     </div>
