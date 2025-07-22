@@ -132,47 +132,9 @@ export default function Home() {
         <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
           {/* Section 1: Celebrity Showcase */}
           <div id="celebrity-showcase" className="h-screen overflow-y-auto p-6 bg-gray-50">
-            <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Celebrity Showcase</h2>
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center">Celebrity Showcase</h2>
               
-              {/* Search bar */}
-              <div className="flex justify-center mb-6">
-                <div className="relative w-full max-w-md">
-                  <input
-                    type="text"
-                    placeholder="Search celebrities..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 pl-10 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  />
-                  <svg
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-              </div>
-              
-              {/* Filter buttons */}
-              <div className="flex justify-center gap-2 mb-4">
-                {['All', 'Music', 'Entertainment', 'Sports'].map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setActiveFilter(filter as any)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
-                      activeFilter === filter
-                        ? 'bg-gray-800 text-white shadow-sm'
-                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                    }`}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
-
               {/* Control buttons */}
               <div className="flex justify-center gap-2 mb-6">
                 <button 
@@ -199,6 +161,47 @@ export default function Home() {
               <div className="flex gap-6">
                 {/* Celebrity table */}
                 <div className="flex-1 bg-white rounded-2xl shadow-sm overflow-hidden">
+                  {/* Search and filter controls - right above table */}
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex gap-4 items-center">
+                      {/* Search bar */}
+                      <div className="relative flex-1 max-w-md">
+                        <input
+                          type="text"
+                          placeholder="Search celebrities..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full px-4 py-2 pl-10 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                        />
+                        <svg
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      
+                      {/* Filter buttons to the right */}
+                      <div className="flex gap-2">
+                        {['All', 'Music', 'Entertainment', 'Sports'].map((filter) => (
+                          <button
+                            key={filter}
+                            onClick={() => setActiveFilter(filter as any)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
+                              activeFilter === filter
+                                ? 'bg-gray-800 text-white shadow-sm'
+                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                            }`}
+                          >
+                            {filter}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="overflow-x-auto">
                     {/* Fixed header */}
                     <div className="bg-gray-50 border-b border-gray-200 sticky top-0">
@@ -215,7 +218,7 @@ export default function Home() {
                     </div>
                     
                     {/* Scrollable body */}
-                    <div className="max-h-80 overflow-y-auto">
+                    <div className="max-h-100 overflow-y-auto">
                       <table className="w-full">
                         <tbody className="divide-y divide-gray-200">
                           {getFilteredCelebrities().map((celebrity) => (
