@@ -305,53 +305,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Section 2: Chat Assistant */}
-          <div id="chat-assistant" className="h-screen flex flex-col p-8 bg-white">
-            <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">Chat Assistant</h2>
-            <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col">
-              {/* Chat messages area */}
-              <div className="flex-1 bg-gray-50 rounded-lg p-6 mb-6 overflow-y-auto">
-                <div className="space-y-4">
-                  {/* Bot message */}
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 shadow-sm max-w-md">
-                      <p className="text-gray-800">Hello! I'm your AI assistant. How can I help you today?</p>
-                    </div>
-                  </div>
-                  
-                  {/* User message */}
-                  <div className="flex items-start space-x-3 justify-end">
-                    <div className="bg-blue-500 rounded-lg p-4 shadow-sm max-w-md">
-                      <p className="text-white">Hi there! I need help with my project.</p>
-                    </div>
-                    <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Chat input area */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <div className="flex space-x-4">
-                  <input
-                    type="text"
-                    placeholder="Type your message..."
-                    className="flex-1 px-4 py-3 text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center space-x-2">
-                    <span>Send</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+
         </main>
       </div>
     </div>
