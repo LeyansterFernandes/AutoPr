@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AutoPr Media Report Generator
 
-## Getting Started
+## Overview
 
-First, run the development server:
+AutoPr is a full-stack application that automates the generation of professional media coverage reports. It scrapes Google News for articles about a client or topic, analyzes and summarizes the results, and produces a polished PDF report with analytics, executive summary, and article images.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Features
+- **Google News Scraper:** Pulls real-time articles (headline, body, source, date, image, URL) for a given query.
+- **Media Analyst Agent:** Tags each article with tier, coverage type, sentiment, and reach (mocked or AI-ready).
+- **Copy Editor Agent:** Generates an executive summary from all articles (AI-ready, currently rule-based).
+- **PDF Report Generator:** Produces a branded, styled PDF with analytics, summary, and article images.
+- **Modern Next.js Frontend:** Select a celebrity/client, generate, and download reports with one click.
+
+---
+
+## Architecture
+
+```mermaid
+graph TD;
+    A[User/Frontend] -->|Selects client, clicks Generate| B[API: /api/generate-media-report];
+    B -->|Scrapes Google News| C[Pipeline: Scraper];
+    C --> D[Media Analyst Agent];
+    D --> E[Copy Editor Agent];
+    E --> F[MediaReport JSON];
+    F -->|POST| G[API: /api/generate-pdf];
+    G --> H[PDF Generator (Puppeteer)];
+    H --> I[PDF Download];
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Frontend:** Next.js React app (TypeScript, Tailwind CSS)
+- **Backend:** Next.js API routes (TypeScript)
+- **Pipeline:** Orchestrated in `src/pipeline/generateMediaReport.ts`
+- **PDF Generation:** Puppeteer renders HTML from `src/templates/report-template.ts`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Setup & Local Development
 
-## Learn More
+### Prerequisites
+- Node.js 18+
+- npm
+- (For PDF generation) Chromium dependencies (Puppeteer downloads automatically)
 
-To learn more about Next.js, take a look at the following resources:
+### Install dependencies
+```bash
+npm install
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Run the development server
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Generate a report (CLI)
+```bash
+npx tsx src/pipeline/generateMediaReport.ts "Client Name" "search term"
+# Output: src/pipeline/media-report.json
+```
 
-## Deploy on Vercel
+### Generate a report (Web UI)
+- Start the dev server
+- Go to [http://localhost:3000](http://localhost:3000)
+- Select a celebrity/client and click **Generate Report**
+- The app will scrape Google News, generate a summary, and download a PDF
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Extensibility
+- **AI Integration:** Swap in Google Vertex AI, OpenAI, or other LLMs for smarter summaries and tagging.
+- **Custom Templates:** Edit `src/templates/report-template.ts` for branding or layout changes.
+- **Additional Sources:** Add more scrapers for Bing News, Twitter, etc.
+- **Multi-client Reports:** Extend the pipeline to support batch/multi-client reporting.
+
+---
+
+## Troubleshooting
+- **PDF Generation Fails:** Ensure Puppeteer can launch Chromium (see Puppeteer docs for OS-specific dependencies).
+- **Google News Scraping Fails:** Google may block bots; try adjusting user-agent or scraping logic.
+- **Serverless Deployments:** Puppeteer may not work on Vercel/Netlify without extra setup (see chrome-aws-lambda).
+
+---
+
+## License
+MIT
