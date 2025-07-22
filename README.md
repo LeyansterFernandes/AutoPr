@@ -19,14 +19,14 @@ AutoPr is a full-stack application that automates the generation of professional
 
 ```mermaid
 graph TD;
-    A[User/Frontend] -->|Selects client, clicks Generate| B[API: /api/generate-media-report];
-    B -->|Scrapes Google News| C[Pipeline: Scraper];
-    C --> D[Media Analyst Agent];
-    D --> E[Copy Editor Agent];
-    E --> F[MediaReport JSON];
-    F -->|POST| G[API: /api/generate-pdf];
-    G --> H[PDF Generator (Puppeteer)];
-    H --> I[PDF Download];
+    A("User/Frontend") -->|"Selects client, clicks Generate"| B("API: /api/generate-media-report");
+    B -->|"Scrapes Google News"| C("Pipeline: Scraper");
+    C --> D("Media Analyst Agent");
+    D --> E("Copy Editor Agent");
+    E --> F("MediaReport JSON");
+    F -->|"POST"| G("API: /api/generate-pdf");
+    G --> H("PDF Generator (Puppeteer)");
+    H --> I("PDF Download");
 ```
 
 - **Frontend:** Next.js React app (TypeScript, Tailwind CSS)
