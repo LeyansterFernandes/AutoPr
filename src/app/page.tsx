@@ -4,40 +4,219 @@ import Link from "next/link";
 import { useState } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import { generatePDFFromCelebrities } from '../lib/pdf-utils';
+import ReportPreview from './components/ReportPreview';
+import ChatInterface from './components/ChatInterface';
+import Toast from './components/Toast';
+import { generateMockReportData, generateBulkReportData, generatePDFFromCelebrities } from '../lib/pdf-utils';
+import { MediaReport } from '../types/report';
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCelebrities, setSelectedCelebrities] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<'All' | 'Music' | 'Entertainment' | 'Sports'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Preview states
+  const [previewMode, setPreviewMode] = useState(false);
+  const [previewData, setPreviewData] = useState<MediaReport | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  
+  // PDF and email states
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [pdfError, setPdfError] = useState('');
+  const [isPreparingEmail, setIsPreparingEmail] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Toast states
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'info' | 'warning' | 'error';
+    isVisible: boolean;
+  }>({
+    message: '',
+    type: 'info',
+    isVisible: false
+  });
+
+  const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'error') => {
+    setToast({ message, type, isVisible: true });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, isVisible: false }));
+  };
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
-      setSidebarOpen(false); // Close sidebar after navigation
+      setSidebarOpen(false);
+    }
+  };
+
+  // Generate Preview Handler
+  const handleGeneratePreview = async () => {
+    if (selectedCelebrities.length === 0) return;
+    
+    setIsGeneratingPreview(true);
+    setError('');
+    
+    try {
+      // Generate report data
+      const reportData = selectedCelebrities.length === 1 
+        ? generateMockReportData(selectedCelebrities[0])
+        : generateBulkReportData(selectedCelebrities);
+      
+      setPreviewData(reportData);
+      setPreviewMode(true);
+    } catch (error) {
+      console.error('Preview generation failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to generate preview');
+    } finally {
+      setIsGeneratingPreview(false);
     }
   };
 
   // PDF Generation Handler
-  const handleGenerateReport = async () => {
-    if (selectedCelebrities.length === 0) return;
+  const handleGeneratePDF = async () => {
+    if (!previewData) return;
     
     setIsGeneratingPDF(true);
-    setPdfError('');
+    setError('');
     
     try {
-      await generatePDFFromCelebrities(selectedCelebrities);
-      // PDF download will happen automatically via the utility function
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(previewData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `${previewData.client.replace(/[^a-zA-Z0-9]/g, '-')}-media-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showToast(`PDF downloaded successfully: ${fileName}`, 'success');
     } catch (error) {
       console.error('PDF generation failed:', error);
-      setPdfError(error instanceof Error ? error.message : 'Failed to generate PDF');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF';
+      setError(errorMessage);
+      showToast(`PDF generation failed: ${errorMessage}`, 'error');
     } finally {
       setIsGeneratingPDF(false);
     }
+  };
+
+  // Email Handler
+  const handleSendEmail = async () => {
+    if (!previewData) return;
+    
+    setIsPreparingEmail(true);
+    setError('');
+    
+    try {
+      showToast('Preparing email with PDF attachment...', 'info');
+      
+      // Generate PDF first
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(previewData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF for email`);
+      }
+
+      const blob = await response.blob();
+      const fileName = `${previewData.client.replace(/[^a-zA-Z0-9]/g, '-')}-media-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Download PDF first
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Create detailed email content
+      const subject = `Media Coverage Report - ${previewData.client} - ${new Date().toLocaleDateString('en-UK')}`;
+      const body = `Dear Colleague,
+
+Please find the attached media coverage report for ${previewData.client}.
+
+REPORT HIGHLIGHTS:
+• Total Articles: ${previewData.articles.length}
+• Top Tier Coverage: ${previewData.articles.filter(a => a.tier === 'Top Tier').length} articles
+• Estimated Total Reach: ${((previewData.total_estimated_reach || 0) / 1000000).toFixed(1)}M
+• Overall Sentiment: ${previewData.overall_sentiment || 'Mixed'}
+
+EXECUTIVE SUMMARY:
+${previewData.summary}
+
+KEY PUBLICATIONS:
+${[...new Set(previewData.articles.filter(a => a.tier === 'Top Tier').map(a => a.source))].slice(0, 5).join(', ')}
+
+The PDF report "${fileName}" has been downloaded to your computer - please attach it to this email before sending.
+
+Best regards,
+DawBell Ltd
+Tel: 020 3327 7111
+Email: info@dawbell.com
+Web: dawbell.com
+
+---
+This is a confidential media intelligence report prepared by DawBell Ltd.`;
+
+      // Use a more reliable method to open email client
+      const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      // Try different methods to ensure email client opens
+      try {
+        window.open(emailUrl, '_self');
+        showToast(`Email client opened with pre-filled content. PDF "${fileName}" downloaded - please attach it to your email.`, 'success');
+      } catch (e) {
+        // Fallback method
+        const tempLink = document.createElement('a');
+        tempLink.href = emailUrl;
+        tempLink.style.display = 'none';
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+        showToast(`Email client should open with pre-filled content. PDF "${fileName}" downloaded - please attach it to your email.`, 'success');
+      }
+      
+    } catch (error) {
+      console.error('Email preparation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to prepare email';
+      setError(errorMessage);
+      showToast(`Email preparation failed: ${errorMessage}`, 'error');
+    } finally {
+      setIsPreparingEmail(false);
+    }
+  };
+
+  // Back to selection
+  const handleBackToSelection = () => {
+    setPreviewMode(false);
+    setPreviewData(null);
+    setError('');
   };
 
   // Selection handlers
@@ -139,6 +318,133 @@ export default function Home() {
     return filtered;
   };
 
+  // Preview Mode Rendering
+  if (previewMode && previewData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <div className="flex">
+          <Sidebar 
+            isOpen={sidebarOpen} 
+            onClose={() => setSidebarOpen(false)}
+            onNavigate={scrollToSection}
+          />
+          <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
+            {/* Preview Header Controls */}
+            <div className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10">
+              <div className="max-w-7xl mx-auto flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleBackToSelection}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to Selection
+                  </button>
+                  <div className="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+                    Preview for {selectedCelebrities.length} selected {selectedCelebrities.length === 1 ? 'celebrity' : 'celebrities'}
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleGeneratePDF}
+                    disabled={isGeneratingPDF}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-medium transition-all shadow-md group ${
+                      isGeneratingPDF 
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
+                    }`}
+                  >
+                    {isGeneratingPDF ? (
+                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    )}
+                    <span className="font-semibold">
+                      {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+                    </span>
+                  </button>
+                  
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={isPreparingEmail}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-medium transition-all shadow-md group ${
+                      isPreparingEmail 
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg'
+                    }`}
+                  >
+                    {isPreparingEmail ? (
+                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                    <span className="font-semibold">
+                      {isPreparingEmail ? 'Preparing...' : 'Send Email'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Error message */}
+              {error && (
+                <div className="mt-3 max-w-7xl mx-auto">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
+                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Preview Content with Chat */}
+            <div className="p-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex gap-6">
+                  {/* Report Preview */}
+                  <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-h-screen overflow-y-auto">
+                    <ReportPreview reportData={previewData} />
+                  </div>
+                  
+                  {/* Chat Interface */}
+                  <div className="w-80 flex-shrink-0">
+                    <div className="sticky top-6 h-[calc(100vh-8rem)]">
+                      <ChatInterface reportData={previewData} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+        
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={hideToast}
+        />
+      </div>
+    );
+  }
+
+  // Selection Mode Rendering
   return (
     <div className="min-h-screen bg-white">
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
@@ -306,34 +612,35 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Generate Report Button - always present, seamless transition */}
+                {/* Generate Preview Button */}
                 <div className="flex flex-col justify-center min-w-[140px]">
                   <button 
-                    onClick={handleGenerateReport}
+                    onClick={handleGeneratePreview}
                     className={`px-6 py-4 text-sm font-medium rounded-2xl transition-all shadow-md flex flex-col items-center gap-2 group min-w-[140px] ${
-                      selectedCelebrities.length > 0 && !isGeneratingPDF
-                        ? 'bg-green-600 text-white hover:bg-green-700 opacity-100 cursor-pointer' 
+                      selectedCelebrities.length > 0 && !isGeneratingPreview
+                        ? 'bg-blue-600 text-white hover:bg-blue-700 opacity-100 cursor-pointer' 
                         : 'bg-gray-200 text-gray-400 opacity-50 cursor-not-allowed'
                     }`}
-                    disabled={selectedCelebrities.length === 0 || isGeneratingPDF}
+                    disabled={selectedCelebrities.length === 0 || isGeneratingPreview}
                   >
-                    {isGeneratingPDF ? (
+                    {isGeneratingPreview ? (
                       <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     ) : (
                       <svg className={`w-6 h-6 transition-transform ${selectedCelebrities.length > 0 ? 'group-hover:scale-110' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     )}
                     <div className="text-center">
                       <div className="font-semibold">
-                        {isGeneratingPDF ? 'Generating...' : 'Generate Report'}
+                        {isGeneratingPreview ? 'Generating...' : 'Generate Preview'}
                       </div>
                       <div className="text-xs opacity-90">
-                        {isGeneratingPDF 
-                          ? 'Creating PDF...' 
+                        {isGeneratingPreview 
+                          ? 'Creating preview...' 
                           : selectedCelebrities.length > 0 
                             ? `${selectedCelebrities.length} selected` 
                             : 'Select celebrities'
@@ -343,9 +650,9 @@ export default function Home() {
                   </button>
                   
                   {/* Error message */}
-                  {pdfError && (
+                  {error && (
                     <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-xs text-red-600">{pdfError}</p>
+                      <p className="text-xs text-red-600">{error}</p>
                     </div>
                   )}
                 </div>
@@ -354,6 +661,14 @@ export default function Home() {
           </div>
         </main>
       </div>
+      
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={hideToast}
+      />
     </div>
   );
 }
