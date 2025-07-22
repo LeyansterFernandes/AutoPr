@@ -19,17 +19,7 @@ export class PDFGenerator {
     console.log('PDFGenerator: Starting browser launch...');
     
     const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ]
+      headless: true
     });
 
     try {
@@ -83,17 +73,7 @@ export class PDFGenerator {
     console.log('PDFGenerator: Starting HTML-to-PDF conversion...');
     
     const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ]
+      headless: true
     });
 
     try {

@@ -162,43 +162,39 @@ function formatReachNumber(num: number): string {
 }
 
 // PDF generation function
-export const generatePDFFromCelebrities = async (celebrityNames: string[]): Promise<void> => {
-  try {
-    const reportData = celebrityNames.length === 1 
-      ? generateMockReportData(celebrityNames[0])
-      : generateBulkReportData(celebrityNames);
-
-    console.log('Generating PDF for celebrities:', celebrityNames);
-    console.log('Report data:', reportData);
-
-    const response = await fetch('/api/generate-pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(reportData),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-    }
-
-    const blob = await response.blob();
-    console.log('PDF generated successfully, size:', blob.size);
-
-    // Download the PDF
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${reportData.client.replace(/[^a-zA-Z0-9]/g, '-')}-media-report-${new Date().toISOString().split('T')[0]}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-  } catch (error) {
-    console.error('PDF generation error:', error);
-    throw error;
+export async function generatePDFFromCelebrities(selectedCelebrities: string[]) {
+  if (!selectedCelebrities || selectedCelebrities.length === 0) throw new Error('No celebrities selected');
+  // For now, use the first celebrity as the client and query
+  const client = selectedCelebrities[0];
+  const query = selectedCelebrities[0];
+  // 1. Get MediaReport JSON from new API
+  const reportRes = await fetch('/api/generate-media-report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client, query }),
+  });
+  if (!reportRes.ok) {
+    const err = await reportRes.text();
+    throw new Error(`Failed to generate media report: ${err}`);
   }
-}; 
+  const report = await reportRes.json();
+  // 2. Send MediaReport JSON to PDF generator
+  const pdfRes = await fetch('/api/generate-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(report),
+  });
+  if (!pdfRes.ok) {
+    const err = await pdfRes.text();
+    throw new Error(`Failed to generate PDF: ${err}`);
+  }
+  const blob = await pdfRes.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${client}-media-report-${new Date().toISOString().split('T')[0]}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+} 
