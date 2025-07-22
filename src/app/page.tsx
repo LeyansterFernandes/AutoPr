@@ -433,6 +433,15 @@ This is a confidential media intelligence report prepared by DawBell Ltd.`;
           </main>
         </div>
         
+        {/* Footer */}
+        <footer className="bg-white border-t border-gray-200 py-4 mt-auto">
+          <div className="max-w-7xl mx-auto px-6">
+            <p className="text-center text-sm text-gray-500">
+              MachineTalents X UM Hackathon @ Google 2025. All rights reserved.
+            </p>
+          </div>
+        </footer>
+        
         {/* Toast Notification */}
         <Toast
           message={toast.message}
@@ -661,6 +670,15 @@ This is a confidential media intelligence report prepared by DawBell Ltd.`;
           </div>
         </main>
       </div>
+      
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 py-4 mt-auto">
+        <div className="max-w-7xl mx-auto px-6">
+          <p className="text-center text-sm text-gray-500">
+            MachineTalents X UM Hackathon @ Google 2025. All rights reserved.
+          </p>
+        </div>
+      </footer>
       
       {/* Toast Notification */}
       <Toast
